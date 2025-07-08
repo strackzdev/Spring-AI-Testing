@@ -1,0 +1,15 @@
+POST http://localhost:8080/api/lead-developer/ask-stream
+Content-Type: application/json
+Accept: text/event-stream
+
+{
+  "question": "I would like to become as fast as possible a lead developer, what should i consider ?"
+}
+
+###
+GET http://localhost:8080/api/lead-developer/ask-full
+Content-Type: application/json
+
+{
+"question": "I would like to become as fast as possible a lead developer, what should i consider ?"
+}

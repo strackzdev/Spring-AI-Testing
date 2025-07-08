@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with Lead Dev</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-200 font-sans flex flex-col items-center min-h-screen p-4">
+
+<div class="w-full max-w-2xl">
+    <h1 class="text-4xl font-bold text-sky-400 mb-6 text-center">Ask the Lead Developer 🧑‍💻</h1>
+
+    <div class="flex items-center justify-center mb-4 gap-4">
+        <span class="font-medium">Full Response</span>
+        <label for="modeToggle" class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="modeToggle" class="sr-only peer" checked>
+            <div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+        </label>
+        <span class="font-medium">Stream Mode</span>
+    </div>
+
+    <div class="flex gap-2 mb-4">
+        <input type="text" id="questionInput" class="flex-grow bg-slate-800 border border-slate-600 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="e.g., Explain technical debt...">
+        <button onclick="askQuestion()" id="askButton" class="bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 px-5 rounded-md transition-colors disabled:bg-slate-500 disabled:cursor-not-allowed">
+            Ask
+        </button>
+    </div>
+
+    <hr class="border-slate-700 my-6"/>
+
+    <h3 class="text-2xl font-semibold mb-4 text-slate-300">Response:</h3>
+    <div id="response" class="bg-slate-800 rounded-lg p-4 min-h-[100px] text-slate-300 whitespace-pre-wrap font-mono"></div>
+</div>
+
+<script>
+    async function askQuestion() {
+        const input = document.getElementById('questionInput');
+        const responseDiv = document.getElementById('response');
+        const askButton = document.getElementById('askButton');
+        const modeToggle = document.getElementById('modeToggle');
+
+        const question = input.value;
+        if (!question.trim()) return;
+
+        askButton.disabled = true;
+        responseDiv.innerHTML = '';
+
+        // 🚀 Check which mode is selected
+        const isStreamMode = modeToggle.checked;
+
+        const base_url = 'http://localhost:8080';
+        const endpoint = isStreamMode ? base_url + '/api/lead-developer/ask-stream' : base_url + '/api/lead-developer/ask-full';
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': isStreamMode ? 'text/event-stream' : 'application/json'
+                },
+                body: JSON.stringify({ question: question })
+            });
+
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+            if (isStreamMode) {
+                // Handle the streaming response
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    let boundary = buffer.indexOf('\n\n');
+                    while (boundary !== -1) {
+                        const message = buffer.substring(0, boundary);
+                        buffer = buffer.substring(boundary + 2);
+                        const lines = message.split('\n');
+                        for (const line of lines) {
+                            if (line.startsWith('data:')) {
+                                let data = line.substring(5).trim();
+                                if (data) {
+                                    if (data.startsWith('-')) {
+                                        responseDiv.appendChild(document.createElement('br'));
+                                        data = '• ' + data.substring(1).trim();
+                                    }
+                                    responseDiv.appendChild(document.createTextNode(data + ' '));
+                                } else {
+                                    responseDiv.appendChild(document.createElement('br'));
+                                }
+                            }
+                        }
+                        boundary = buffer.indexOf('\n\n');
+                    }
+                }
+            } else {
+                // Handle the full response
+                const fullText = await response.text();
+                responseDiv.innerText = fullText;
+            }
+
+        } catch (error) {
+            console.error("Fetch error:", error);
+            responseDiv.innerHTML = `\n\n[Error: ${error.message}]`;
+        } finally {
+            askButton.disabled = false;
+        }
+    }
+
+    document.getElementById('questionInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') document.getElementById('askButton').click();
+    });
+</script>
+
+</body>
+</html>

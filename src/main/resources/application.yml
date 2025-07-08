@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: spring-ai-testing
+  ai:
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:-RANDOMKEY}
+      chat:
+        options:
+          model: ${ANTHROPIC_MODEL:-claude-3-7-sonnet-20250219}
